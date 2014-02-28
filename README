@@ -1,0 +1,7 @@
+Code fetched from : http://www.dsi.unive.it/~rodola/sw.html
+
+The code implements dual quaternions diffusion for multiview registration as described in the paper cited below. The package also includes code for a small demo application demonstrating its very simple usage. This exact code was used for the experiments in the paper, so it should be very efficient and very accurate; if results are not as good as expected feel free to contact me. If you use this code, please cite the paper:
+
+"Multiview Registration via Graph Diffusion of Dual Quaternions".
+Andrea Torsello, Emanuele Rodolà and Andrea Albarelli.
+The XXIV IEEE Conference on Computer Vision and Pattern Recognition (CVPR2011)
