@@ -1,0 +1,12 @@
+The demo simulates a process in which a collection of rangemaps along a ring
+topology are pairwise-aligned with an ICP-like process. This process inevitably
+induces alignment error accumulation on the view graph, which is then globally
+minimized with the dual quaternion method.
+
+Note that the demo makes use of a mesh structure only for the sake of visualization
+and testing. The actual library does not need mesh data at any point of the optimization.
+
+For more details, please refer to the paper:
+
+"Multiview Registration via Graph Diffusion of Dual Quaternions".
+A.Torsello, E.Rodola, and A.Albarelli. Proc. CVPR 2011.

@@ -1,0 +1,51 @@
+The file dual_quaternions.h contains the dual quaternion diffusion algorithm
+as described in the following paper:
+
+"Multiview Registration via Graph Diffusion of Dual Quaternions". A.Torsello, E.Rodola, and A.Albarelli. Proc. CVPR 2011.
+
+A demo example can be found in main.cpp. To run the demo, simply compile the code
+and type:
+
+./Demo <path to data> 9
+
+where <path to data> should be replaced with either an absolute path to the data/
+folder, or with a relative path wrt the application.
+
+The library _only_ requires pairwise rigid motions to be given (no point data).
+In particular:
+
+// include the library (just one header file)
+#include "dual_quaternions.h"
+
+// construct a transducer object for N views
+transducer x(N);
+
+// add edges to the view-graph: i and j are the two view nodes, while R_ij and
+// T_ij represent the rigid motion bringing an object in coordinate frame j to 
+// coordinate frame i.
+// w_ij represents a weight given to the current pair, e.g. it can be defined
+// with respect to alignment quality coming from an ICP step. default is 1.0.
+
+x.add_transformation(i, j, R_ij, T_ij, w_ij);
+...
+
+// optionally compute a breadth-first coverage of the view-graph so as to
+// assign an absolute orientation to each view and compute the initial error
+x.get_estimate();
+cout << x.rmste() << endl;
+
+// finally run the diffusion process (it includes get_estimate() as the
+// first step), and compute the final error
+x.linear_transduce();
+cout << x.rmste() << endl;
+
+// the resulting absolute orientations for each view can be obtained by
+// a call to get_position()
+dual_quaternion tt;
+x.get_position(i,tt);
+matrix3x3<double> R = demo::quaternion_to_rot_matrix(tt.R);
+point3d T = tt.get_translation();
+...
+
+The code is standard C++ with no additional dependencies. It was tested
+using gcc 4.4.1 and 4.5.1 in Windows and Linux environments.
