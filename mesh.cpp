@@ -186,7 +186,7 @@ void mesh::load_mesh_from_ply(const string& fname, bool verbose)
                std::getline(file_in,line);
                tokenize_str(line, tokens, " ");
                ++cur_l;
-            } while(tokens[0] != "end_header");
+            } while(tokens[0].substr(0,10) != "end_header");
 
             break;
          }
