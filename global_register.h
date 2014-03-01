@@ -1,3 +1,6 @@
+#ifndef GLOBAL_REGISTER_H
+#define GLOBAL_REGISTER_H
+
 #include <pcl/registration/icp.h>
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/io/pcd_io.h>
@@ -19,3 +22,5 @@ class GlobalDQReg {
     void loadPCDFiles();
 
 };
+
+#endif

@@ -11,12 +11,16 @@ set(dq_diffusion_HDRS
 
 set(dq_diffusion_SRCS
     dualquat/mesh.cpp
-    dualquat/main.cpp)
-
-add_library(dq_diffusion SHARED ${dq_diffusion_HDRS} ${dq_diffusion_SRCS})
+    dualquat/diffusion.hpp)
 
 include_directories(
     ${PCL_INCLUDE_DIRS})
 
-add_executable(global_register global_register.cpp global_register.h)
-target_link_libraries(global_register ${PCL_LIBRARIES} dq_diffusion)
+add_library(dq_diffusion SHARED ${dq_diffusion_HDRS} ${dq_diffusion_SRCS})
+
+add_library(global_register_dq SHARED global_register.h global_register.cpp)
+target_link_libraries(global_register_dq ${PCL_LIBRARIES})
+
+
+add_executable(global_register main.cpp)
+target_link_libraries(global_register dq_diffusion global_register_dq)

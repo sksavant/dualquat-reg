@@ -2,7 +2,7 @@
 
 int main(int argc, char** argv)
 {
-    g = GlobalDQReg();
+    GlobalDQReg g = GlobalDQReg();
     g.pairwiseRegister();
     g.runDQDiffusion();
 }
