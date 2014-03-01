@@ -1,3 +1,6 @@
+#ifndef MESH_HPP
+#define MESH_HPP
+
 #include "mesh.h"
 #include <fstream>
 #include <iomanip>
@@ -454,3 +457,4 @@ void mesh::save_as_ply_colors(const string& fname, const vector<math3d::color_rg
    out.close();
    cout << "done." << endl;
 }
+#endif

@@ -1,3 +1,6 @@
+#ifndef DUAL_QUATERNIONS_H
+#define DUAL_QUATERNIONS_H
+
 #include "math3d.h"
 
 using math3d::point3d;
@@ -373,3 +376,4 @@ void transducer::manifold_transduce(const int diffusion_iterations, const int av
       Q[i] = (Q[i]*st).normalize();
 
 }
+#endif
