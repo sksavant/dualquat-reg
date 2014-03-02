@@ -3,6 +3,10 @@ project(global_dq_reg)
 cmake_minimum_required(VERSION 2.8)
 
 find_package(PCL REQUIRED)
+find_package(Eigen REQUIRED)
+
+set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR})
+set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 set(dq_diffusion_HDRS
     dualquat/dual_quaternions.h
@@ -14,7 +18,8 @@ set(dq_diffusion_SRCS
     dualquat/diffusion.hpp)
 
 include_directories(
-    ${PCL_INCLUDE_DIRS})
+    ${PCL_INCLUDE_DIRS}
+    ${Eigen_INCLUDE_DIRS})
 
 add_library(dq_diffusion SHARED ${dq_diffusion_HDRS} ${dq_diffusion_SRCS})
 
