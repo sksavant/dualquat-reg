@@ -1,7 +1,10 @@
 #include "global_register.h"
 
 #define NUM_CLOUDS 10
-#define NUM_PAIRS 
+#define NUM_PAIRS 7
+
+int harris_radius = 0.1;
+int* current_pair;
 
 static std::string cloud_names[NUM_CLOUDS]={"bun000", "bun045", "bun090", "bun180", "bun270", "bun315", "chin", "ear_back", "top2", "top3"};
 
@@ -14,7 +17,7 @@ GlobalDQReg::GlobalDQReg(){
 }
 
 void GlobalDQReg::loadPCDFiles(){
-    std::cerr << "Loading PCD Files\n";
+    std::cerr << "loadPCDFiles : Loading PCD Files\n";
 
     pcl::PointCloud<Point>::Ptr cloud(new pcl::PointCloud<Point>);
     for (int i=0; i<NUM_CLOUDS; i++){
@@ -27,10 +30,31 @@ void GlobalDQReg::loadPCDFiles(){
 
 void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4f& tranform)
 {
+    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_2(new pcl::PointCloud<pcl::PointXYZI>);
+
+    pcl::search::KdTree<Point>::Ptr tree_1(new pcl::search::KdTree<Point>());
+    pcl::search::KdTree<Point>::Ptr tree_2(new pcl::search::KdTree<Point>());
     // TODO
     // KeyPoints
+    pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal> hkp_1;
+    pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal> hkp_2;
+
+    hkp_1.setRadius(harris_radius);
+    hkp_1.setSearchMethod(tree_1);
+    hkp_1.setInputCloud(cloud_1);
+    hkp_1.compute(*keypoints_1);
+    PCL_INFO("getTransformOfPair: (%s) : Found keypoints :%d", cloud_names[current_pair[0]].c_str(), keypoints_1->points.size());
+
+    hkp_2.setRadius(harris_radius);
+    hkp_2.setSearchMethod(tree_2);
+    hkp_2.setInputCloud(cloud_2);
+    hkp_2.compute(*keypoints_2);
+    PCL_INFO("getTransformOfPair: (%s) : Found keypoints :%d", cloud_names[current_pair[1]].c_str(), keypoints_2->points.size());
 
     // Features
+
+    
 
     // SACIA
 
@@ -44,12 +68,14 @@ void GlobalDQReg::pairwiseRegister()
     for (size_t i=0; i<cloud_pairs.size(); ++i){
         // Get a Pair and do stuff
         Eigen::Matrix4f t;
-        int* pair = cloud_pairs[i];
-        getTransformOfPair(bunny_clouds_[pair[0]], bunny_clouds_[pair[1]], t);
+        int* current_pair = cloud_pairs[i];
+        PCL_INFO("pairwiseRegister : Pairwise registration of %s and %s\n", cloud_names[current_pair[0]].c_str(), cloud_names[current_pair[1]].c_str());
+        getTransformOfPair(bunny_clouds_[current_pair[0]], bunny_clouds_[current_pair[1]], t);
         pairwise_transformations_.push_back(t);
+        break; // Test one first
     }
-
 }
+
 void GlobalDQReg::runDQDiffusion()
 {
     PCL_INFO("runDQDiffusion: Running Dual Quaterion diffusion\n");

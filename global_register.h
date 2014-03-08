@@ -1,6 +1,8 @@
 #ifndef GLOBAL_REGISTER_H
 #define GLOBAL_REGISTER_H
 
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/keypoints/harris_3d.h>
 #include <pcl/registration/icp.h>
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/io/pcd_io.h>
@@ -10,7 +12,6 @@
 #include "dualquat/math3d.h"
 
 #include <Eigen/Dense>
-#include <initializer_list>
 
 typedef pcl::PointXYZ Point;
 
