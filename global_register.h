@@ -20,6 +20,7 @@ class GlobalDQReg {
     GlobalDQReg();
     void pairwiseRegister();
     void runDQDiffusion();
+    void saveKeyPoints(std::string);
 
   private:
     std::vector<pcl::PointCloud<Point>::Ptr > bunny_clouds_;

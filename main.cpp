@@ -3,6 +3,7 @@
 int main(int argc, char** argv)
 {
     GlobalDQReg g = GlobalDQReg();
-    g.pairwiseRegister();
+    g.saveKeyPoints("data/keypoints/");
+    //g.pairwiseRegister();
     g.runDQDiffusion();
 }
