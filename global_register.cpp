@@ -19,8 +19,8 @@ GlobalDQReg::GlobalDQReg(){
 void GlobalDQReg::loadPCDFiles(){
     std::cerr << "loadPCDFiles : Loading PCD Files\n";
 
-    pcl::PointCloud<Point>::Ptr cloud(new pcl::PointCloud<Point>);
     for (int i=0; i<NUM_CLOUDS; i++){
+        pcl::PointCloud<Point>::Ptr cloud(new pcl::PointCloud<Point>);
         pcl::io::loadPCDFile("data/"+cloud_names[i]+"_UnStructured.pcd", *cloud);
         bunny_clouds_.push_back(cloud);
         PCL_INFO("loadPCDFiles : Cloud %s has %d points\n", cloud_names[i].c_str(), cloud->width);
@@ -28,23 +28,29 @@ void GlobalDQReg::loadPCDFiles(){
 
 }
 
-void GlobalDQReg::saveKeyPoints(std::string folder_name){
+void GlobalDQReg::saveCloudKeyPoints(std::string file_name, int cloud_index){
+    int i = cloud_index;
+    pcl::PointCloud<Point>::Ptr cloud_1 = bunny_clouds_[i];
+    PCL_INFO("saveAllKeyPoints: Computing keypoints of %s\n", cloud_names[i].c_str());
+    PCL_INFO("saveAllKeyPoints : Cloud %s has %d points\n", cloud_names[i].c_str(), bunny_clouds_[i]->width);
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::search::KdTree<Point>::Ptr tree_1(new pcl::search::KdTree<Point>());
+    pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal>::Ptr hkp_1(new pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal>);
+
+    hkp_1->setRadius(harris_radius);
+    hkp_1->setSearchMethod(tree_1);
+    hkp_1->setInputCloud(cloud_1);
+    hkp_1->compute(*keypoints_1);
+
+    PCL_INFO("saveAllKeyPoints: Saving %d keypoints to %s\n", keypoints_1->points.size(), file_name.c_str());
+    pcl::io::savePCDFileASCII(file_name, *keypoints_1);
+}
+
+void GlobalDQReg::saveAllKeyPoints(std::string folder_name){
     for (int i=0; i<NUM_CLOUDS; ++i){
         std::string file_name = folder_name+"/"+cloud_names[i]+"_kp.pcd";
-        pcl::PointCloud<Point>::Ptr cloud_1 = bunny_clouds_[i];
-        PCL_INFO("saveKeyPoints: Computing keypoints of %s\n", cloud_names[i].c_str());
-
-        pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZI>);
-        pcl::search::KdTree<Point>::Ptr tree_1(new pcl::search::KdTree<Point>());
-        pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal>::Ptr hkp_1(new pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal>);
-
-        hkp_1->setRadius(harris_radius);
-        hkp_1->setSearchMethod(tree_1);
-        hkp_1->setInputCloud(cloud_1);
-        hkp_1->compute(*keypoints_1);
-
-        PCL_INFO("saveKeyPoints: Saving %d keypoints to %s\n", keypoints_1->points.size(), file_name.c_str());
-        pcl::io::savePCDFileASCII(file_name, *keypoints_1);
+        saveCloudKeyPoints(file_name, i);
     }
 }
 
