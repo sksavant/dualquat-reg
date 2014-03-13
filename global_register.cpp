@@ -3,7 +3,7 @@
 #define NUM_CLOUDS 10
 #define NUM_PAIRS 7
 
-float harris_radius = 0.1;
+double harris_radius = 0.01;
 int* current_pair;
 
 static std::string cloud_names[NUM_CLOUDS]={"bun000", "bun045", "bun090", "bun180", "bun270", "bun315", "chin", "ear_back", "top2", "top3"};
@@ -36,12 +36,12 @@ void GlobalDQReg::saveKeyPoints(std::string folder_name){
 
         pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZI>);
         pcl::search::KdTree<Point>::Ptr tree_1(new pcl::search::KdTree<Point>());
-        pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal> hkp_1;
+        pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal>::Ptr hkp_1(new pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal>);
 
-        hkp_1.setRadius(harris_radius);
-        hkp_1.setSearchMethod(tree_1);
-        hkp_1.setInputCloud(cloud_1);
-        hkp_1.compute(*keypoints_1);
+        hkp_1->setRadius(harris_radius);
+        hkp_1->setSearchMethod(tree_1);
+        hkp_1->setInputCloud(cloud_1);
+        hkp_1->compute(*keypoints_1);
 
         PCL_INFO("saveKeyPoints: Saving %d keypoints to %s\n", keypoints_1->points.size(), file_name.c_str());
         pcl::io::savePCDFileASCII(file_name, *keypoints_1);
