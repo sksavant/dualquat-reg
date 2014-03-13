@@ -21,6 +21,8 @@ include_directories(
     ${PCL_INCLUDE_DIRS}
     ${Eigen_INCLUDE_DIRS})
 
+add_definitions("-g")
+
 add_library(dq_diffusion SHARED ${dq_diffusion_HDRS} ${dq_diffusion_SRCS})
 
 add_library(global_register_dq SHARED global_register.h global_register.cpp)

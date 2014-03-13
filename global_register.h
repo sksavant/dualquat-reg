@@ -3,6 +3,8 @@
 
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/keypoints/harris_3d.h>
+#include <pcl/features/fpfh.h>
+#include <pcl/features/fpfh_omp.h>
 #include <pcl/registration/icp.h>
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/io/pcd_io.h>

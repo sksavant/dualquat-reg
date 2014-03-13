@@ -4,6 +4,8 @@
 #define NUM_PAIRS 7
 
 double harris_radius = 0.01;
+double normal_estimation_radius = 0.02;
+double fpfh_estimation_radius = 0.04;
 int* current_pair;
 
 static std::string cloud_names[NUM_CLOUDS]={"bun000", "bun045", "bun090", "bun180", "bun270", "bun315", "chin", "ear_back", "top2", "top3"};
@@ -11,13 +13,25 @@ static std::string cloud_names[NUM_CLOUDS]={"bun000", "bun045", "bun090", "bun18
 int ar[][2] = { {0,1}, {1,2}, {0,2}, {2,3}, {3,4} , {4,5} ,{5,0} };
 std::vector<int*> cloud_pairs(ar, ar+sizeof(ar)/sizeof(ar[0]));
 
+pcl::PointCloud<pcl::PointXYZ>::Ptr toPointXYZ(pcl::PointCloud<pcl::PointXYZI>::Ptr cloud){
+    pcl::PointCloud<pcl::PointXYZ>::Ptr new_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    for (size_t i=0; i<cloud->width; ++i){
+        pcl::PointXYZ new_point;
+        new_point.x = cloud->points[i].x;
+        new_point.y = cloud->points[i].y;
+        new_point.z = cloud->points[i].z;
+        new_cloud->points.push_back(new_point);
+    }
+    return new_cloud;
+}
+
 GlobalDQReg::GlobalDQReg(){
 
     loadPCDFiles();
 }
 
 void GlobalDQReg::loadPCDFiles(){
-    std::cerr << "loadPCDFiles : Loading PCD Files\n";
+    PCL_INFO("loadPCDFiles : Loading PCD Files\n");
 
     for (int i=0; i<NUM_CLOUDS; i++){
         pcl::PointCloud<Point>::Ptr cloud(new pcl::PointCloud<Point>);
@@ -54,7 +68,7 @@ void GlobalDQReg::saveAllKeyPoints(std::string folder_name){
     }
 }
 
-void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4f& tranform)
+void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4f& transform)
 {
     pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_2(new pcl::PointCloud<pcl::PointXYZI>);
@@ -80,6 +94,42 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
 
     // Features
 
+    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs_1(new pcl::PointCloud<pcl::FPFHSignature33>);
+    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs_2(new pcl::PointCloud<pcl::FPFHSignature33>);
+
+    pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>());
+    pcl::FPFHEstimationOMP<Point, pcl::Normal, pcl::FPFHSignature33> fpfh;
+    pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>());
+    pcl::NormalEstimation<Point, pcl::Normal> normal_estimation;
+
+    //std::clock_t start_normal = std::clock();
+    normal_estimation.setInputCloud(cloud_1);
+    normal_estimation.setSearchMethod(tree);
+    normal_estimation.setRadiusSearch(normal_estimation_radius);
+    normal_estimation.compute(*normals);
+    //double time = (std::clock() - start_normal)/(double) CLOCKS_PER_SEC;
+    //std::cerr << "Normal estimation time: " << time << " ms\n";
+    fpfh.setSearchSurface(cloud_1);
+    fpfh.setInputNormals(normals);
+    fpfh.setInputCloud(toPointXYZ(keypoints_1));
+    fpfh.setSearchMethod(tree);
+    fpfh.setRadiusSearch(fpfh_estimation_radius);
+    fpfh.compute(*fpfhs_1);
+    //time = (std::clock() - start_normal)/(double) CLOCKS_PER_SEC;
+    //std::cerr << "FPFH compute time: " << time << " ms\n";
+    PCL_INFO("getTransformOfPair: Found FPFH features at %d keypoints of %s\n", fpfhs_1->points.size(), cloud_names[current_pair[0]].c_str());
+
+    normal_estimation.setInputCloud(cloud_2);
+    normal_estimation.setSearchMethod(tree);
+    normal_estimation.setRadiusSearch(normal_estimation_radius);
+    normal_estimation.compute(*normals);
+    fpfh.setSearchSurface(cloud_2);
+    fpfh.setInputNormals(normals);
+    fpfh.setInputCloud(toPointXYZ(keypoints_2));
+    fpfh.setSearchMethod(tree);
+    fpfh.setRadiusSearch(fpfh_estimation_radius);
+    fpfh.compute(*fpfhs_2);
+    PCL_INFO("getTransformOfPair: Found FPFH features at %d keypoints of %s\n", fpfhs_2->points.size(), cloud_names[current_pair[1]].c_str());
 
     // SACIA
 
@@ -94,7 +144,7 @@ void GlobalDQReg::pairwiseRegister()
     for (size_t i=0; i<cloud_pairs.size(); ++i){
         // Get a Pair and do stuff
         Eigen::Matrix4f t;
-        int* current_pair = cloud_pairs[i];
+        current_pair = cloud_pairs[i];
         PCL_INFO("pairwiseRegister: Pairwise registration of %s and %s\n", cloud_names[current_pair[0]].c_str(), cloud_names[current_pair[1]].c_str());
         getTransformOfPair(bunny_clouds_[current_pair[0]], bunny_clouds_[current_pair[1]], t);
         pairwise_transformations_.push_back(t);
