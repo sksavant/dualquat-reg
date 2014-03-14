@@ -1,6 +1,7 @@
 #include "global_register.h"
 
 #define NUM_CLOUDS 10
+#define NUM_CONNECTED 6
 #define NUM_PAIRS 7
 
 double harris_radius = 0.01;
@@ -25,8 +26,9 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointXYZ(pcl::PointCloud<pcl::PointXYZI>::
     return new_cloud;
 }
 
-GlobalDQReg::GlobalDQReg(){
-
+GlobalDQReg::GlobalDQReg() :
+dq_transducer(NUM_CONNECTED)
+{
     loadPCDFiles();
 }
 
@@ -68,7 +70,7 @@ void GlobalDQReg::saveAllKeyPoints(std::string folder_name){
     }
 }
 
-void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4f& transform)
+void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4d& transform)
 {
     pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_2(new pcl::PointCloud<pcl::PointXYZI>);
@@ -143,7 +145,7 @@ void GlobalDQReg::pairwiseRegister()
     pairwise_transformations_.clear();
     for (size_t i=0; i<cloud_pairs.size(); ++i){
         // Get a Pair and do stuff
-        Eigen::Matrix4f t;
+        Eigen::Matrix4d t;
         current_pair = cloud_pairs[i];
         PCL_INFO("pairwiseRegister: Pairwise registration of %s and %s\n", cloud_names[current_pair[0]].c_str(), cloud_names[current_pair[1]].c_str());
         getTransformOfPair(bunny_clouds_[current_pair[0]], bunny_clouds_[current_pair[1]], t);
@@ -158,5 +160,26 @@ void GlobalDQReg::runDQDiffusion()
     // TODO
     // Setup DQs with cloud names and transforms
 
+    math3d::quaternion<double> R;
+    point3d t;
+    Eigen::Matrix4d transform;
+    double rot[9];
+    for (int i=0; i<NUM_PAIRS; ++i){
+        transform = pairwise_transformations_[i];
+        for (int j=0; j<3; ++j){
+            for (int k=0; k<3; ++k){
+                rot[j+3*k] = transform(j,k);
+            }
+        }
+        R = math3d::rot_matrix_to_quaternion(math3d::matrix3x3<double>(rot));
+        t = math3d::vec3d<double>(transform(0,3), transform(1,3), transform(2,3));
+        dq_transducer.add_transformation(cloud_pairs[i][0], cloud_pairs[i][1], R, t, 1.0);
+    }
+
+    dq_transducer.get_estimate();
+    PCL_INFO("runDQDiffusion: Initial Error before diffusion is %f\n", dq_transducer.rmste());
+
     // Runn diffusion
+    dq_transducer.linear_transduce();
+    PCL_INFO("runDQDiffusion: Error after diffusion is %f\n", dq_transducer.rmste());
 }

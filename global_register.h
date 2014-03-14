@@ -10,8 +10,6 @@
 #include <pcl/io/pcd_io.h>
 
 #include "dualquat/dual_quaternions.h"
-#include "dualquat/mesh.h"
-#include "dualquat/math3d.h"
 
 #include <Eigen/Dense>
 
@@ -26,11 +24,12 @@ class GlobalDQReg {
 
   private:
     std::vector<pcl::PointCloud<Point>::Ptr > bunny_clouds_;
-    std::vector<Eigen::Matrix4f> pairwise_transformations_;
+    std::vector<Eigen::Matrix4d> pairwise_transformations_;
+    transducer dq_transducer;
 
     void loadPCDFiles();
     void saveCloudKeyPoints(std::string, int);
-    void getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4f& tranform);
+    void getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4d& tranform);
 
 };
 
