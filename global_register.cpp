@@ -7,6 +7,9 @@
 double harris_radius = 0.01;
 double normal_estimation_radius = 0.02;
 double fpfh_estimation_radius = 0.04;
+double min_sample_distance = 0.1;
+double max_correspondence_distance = 0.1*0.1;
+int nr_iterations = 500;
 int* current_pair;
 
 static std::string cloud_names[NUM_CLOUDS]={"bun000", "bun045", "bun090", "bun180", "bun270", "bun315", "chin", "ear_back", "top2", "top3"};
@@ -134,7 +137,67 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
     PCL_INFO("getTransformOfPair: Found FPFH features at %d keypoints of %s\n", fpfhs_2->points.size(), cloud_names[current_pair[1]].c_str());
 
     // SACIA
+    pcl::SampleConsensusInitialAlignment<Point, Point, pcl::FPFHSignature33> sac_ia;
+    pcl::PointCloud<Point> ransaced_source;
+    pcl::PointCloud<Point>::Ptr transformed_cloud_2(new pcl::PointCloud<Point>);
+    pcl::KdTreeFLANN<Point> kdtree;
+    Eigen::Matrix4d transformation_2_1;
+    Eigen::Matrix4d transformation_temp;
+    float fitness_score;
+    float min_fitness_score = FLT_MAX;
+    float min_error = FLT_MAX;
+    float max_error = 0.0;
+    float error = 0.0;
+    sac_ia.setMinSampleDistance(min_sample_distance);
+    //sac_ia.setMaxCorrespondenceDistance(max_correspondence_distance);
+    sac_ia.setMaximumIterations(nr_iterations);
 
+    sac_ia.setInputCloud(toPointXYZ(keypoints_2));
+    sac_ia.setSourceFeatures(fpfhs_2);
+    sac_ia.setInputTarget(toPointXYZ(keypoints_1));
+    sac_ia.setTargetFeatures(fpfhs_1);
+    int count = 0;
+    int max_count = 15;
+    while (count<max_count){
+        sac_ia.align(ransaced_source);
+        fitness_score = sac_ia.getFitnessScore(max_correspondence_distance);
+        transformation_temp = sac_ia.getFinalTransformation();
+        PCL_INFO("Pointclouds aligned, fitness score (with keypoints only) is :%f", fitness_score);
+
+        error = 0.0;
+
+        pcl::transformPointCloud(*cloud_2, *transformed_cloud_2, transformation_temp);
+        kdtree.setInputCloud(cloud_1);
+        fitness_score = 0.0;
+
+        for (size_t i=0; i<transformed_qd_cloud->width; ++i){
+            Point searchPoint = transformed_qd_cloud->points[i];
+            int point_index = findNearestPointIndices(searchPoint, gt_cloud, kdtree, 1)[0];
+            Point resultPoint = gt_cloud->points[point_index];
+            Eigen::Vector4f p1 = Eigen::Vector4f (searchPoint.x, searchPoint.y, searchPoint.z, 0);
+            Eigen::Vector4f p2 = Eigen::Vector4f (resultPoint.x, resultPoint.y, resultPoint.z, 0);
+            error = (p1-p2).squaredNorm();
+            if (sqrt(error) < max_correspondence_distance){
+                error = error/2.0;
+            }else{
+                error = max_correspondence_distance*(sqrt(error)-max_correspondence_distance/2.0);
+            }
+            if (error > max_error){
+                max_error = error;
+            }
+            if (error < min_error){
+                min_error = error;
+            }
+            fitness_score += fabs(error);
+        }
+        float avg_error = fitness_score/transformed_qd_cloud->width;
+        PCL_INFO("Average error (huber fitness score) is %f\n",avg_error);
+        if (avg_error <= min_fitness_score){
+            min_fitness_score = avg_error;
+            transformation_2_1 = transformation_temp;
+        }
+        count++;
+    }
 
     // ICP
 }
