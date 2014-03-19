@@ -29,6 +29,16 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointXYZ(pcl::PointCloud<pcl::PointXYZI>::
     return new_cloud;
 }
 
+std::vector<int> findNearestPointIndices(Point& searchPoint, pcl::PointCloud<Point>::Ptr& cloud, pcl::KdTreeFLANN<Point>& kdtree, int K){
+    std::vector<int> pointIdxNKNSearch(K);
+    std::vector<float> pointNKNSquaredDistance(K);
+    if ( kdtree.nearestKSearch (searchPoint, K, pointIdxNKNSearch, pointNKNSquaredDistance) > 0 ){
+        return pointIdxNKNSearch;
+    }
+    pointIdxNKNSearch.clear();
+    return pointIdxNKNSearch;
+}
+
 GlobalDQReg::GlobalDQReg() :
 dq_transducer(NUM_CONNECTED)
 {
@@ -40,7 +50,11 @@ void GlobalDQReg::loadPCDFiles(){
 
     for (int i=0; i<NUM_CLOUDS; i++){
         pcl::PointCloud<Point>::Ptr cloud(new pcl::PointCloud<Point>);
+        pcl::PointCloud<Point>::Ptr filtered_cloud(new pcl::PointCloud<Point>);
+        std::vector<int> mapping;
+
         pcl::io::loadPCDFile("data/"+cloud_names[i]+"_UnStructured.pcd", *cloud);
+        pcl::removeNaNFromPointCloud(*cloud, *filtered_cloud, mapping);
         bunny_clouds_.push_back(cloud);
         PCL_INFO("loadPCDFiles : Cloud %s has %d points\n", cloud_names[i].c_str(), cloud->width);
     }
@@ -73,10 +87,12 @@ void GlobalDQReg::saveAllKeyPoints(std::string folder_name){
     }
 }
 
-void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4d& transform)
+void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4f& transform)
 {
     pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZI>);
     pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_2(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_temp(new pcl::PointCloud<pcl::PointXYZI>);
+    std::vector<int> mapping;
 
     pcl::search::KdTree<Point>::Ptr tree_1(new pcl::search::KdTree<Point>());
     pcl::search::KdTree<Point>::Ptr tree_2(new pcl::search::KdTree<Point>());
@@ -88,13 +104,15 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
     hkp_1.setRadius(harris_radius);
     hkp_1.setSearchMethod(tree_1);
     hkp_1.setInputCloud(cloud_1);
-    hkp_1.compute(*keypoints_1);
+    hkp_1.compute(*keypoints_temp);
+    pcl::removeNaNFromPointCloud(*keypoints_temp, *keypoints_1, mapping);
     PCL_INFO("getTransformOfPair: (%s) : Found keypoints :%d\n", cloud_names[current_pair[0]].c_str(), keypoints_1->points.size());
 
     hkp_2.setRadius(harris_radius);
     hkp_2.setSearchMethod(tree_2);
     hkp_2.setInputCloud(cloud_2);
-    hkp_2.compute(*keypoints_2);
+    hkp_2.compute(*keypoints_temp);
+    pcl::removeNaNFromPointCloud(*keypoints_temp, *keypoints_2, mapping);
     PCL_INFO("getTransformOfPair: (%s) : Found keypoints :%d\n", cloud_names[current_pair[1]].c_str(), keypoints_2->points.size());
 
     // Features
@@ -141,8 +159,8 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
     pcl::PointCloud<Point> ransaced_source;
     pcl::PointCloud<Point>::Ptr transformed_cloud_2(new pcl::PointCloud<Point>);
     pcl::KdTreeFLANN<Point> kdtree;
-    Eigen::Matrix4d transformation_2_1;
-    Eigen::Matrix4d transformation_temp;
+    Eigen::Matrix4f transformation_2_1;
+    Eigen::Matrix4f transformation_temp;
     float fitness_score;
     float min_fitness_score = FLT_MAX;
     float min_error = FLT_MAX;
@@ -152,7 +170,7 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
     //sac_ia.setMaxCorrespondenceDistance(max_correspondence_distance);
     sac_ia.setMaximumIterations(nr_iterations);
 
-    sac_ia.setInputCloud(toPointXYZ(keypoints_2));
+    sac_ia.setInputSource(toPointXYZ(keypoints_2));
     sac_ia.setSourceFeatures(fpfhs_2);
     sac_ia.setInputTarget(toPointXYZ(keypoints_1));
     sac_ia.setTargetFeatures(fpfhs_1);
@@ -170,12 +188,12 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
         kdtree.setInputCloud(cloud_1);
         fitness_score = 0.0;
 
-        for (size_t i=0; i<transformed_qd_cloud->width; ++i){
-            Point searchPoint = transformed_qd_cloud->points[i];
-            int point_index = findNearestPointIndices(searchPoint, gt_cloud, kdtree, 1)[0];
-            Point resultPoint = gt_cloud->points[point_index];
-            Eigen::Vector4f p1 = Eigen::Vector4f (searchPoint.x, searchPoint.y, searchPoint.z, 0);
-            Eigen::Vector4f p2 = Eigen::Vector4f (resultPoint.x, resultPoint.y, resultPoint.z, 0);
+        for (size_t i=0; i<transformed_cloud_2->width; ++i){
+            Point searchPoint = transformed_cloud_2->points[i];
+            int point_index = findNearestPointIndices(searchPoint, cloud_1, kdtree, 1)[0];
+            Point resultPoint = cloud_1->points[point_index];
+            Eigen::Vector4d p1 = Eigen::Vector4d (searchPoint.x, searchPoint.y, searchPoint.z, 0);
+            Eigen::Vector4d p2 = Eigen::Vector4d (resultPoint.x, resultPoint.y, resultPoint.z, 0);
             error = (p1-p2).squaredNorm();
             if (sqrt(error) < max_correspondence_distance){
                 error = error/2.0;
@@ -190,7 +208,7 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
             }
             fitness_score += fabs(error);
         }
-        float avg_error = fitness_score/transformed_qd_cloud->width;
+        float avg_error = fitness_score/transformed_cloud_2->width;
         PCL_INFO("Average error (huber fitness score) is %f\n",avg_error);
         if (avg_error <= min_fitness_score){
             min_fitness_score = avg_error;
@@ -198,7 +216,7 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
         }
         count++;
     }
-
+    transform = transformation_2_1;
     // ICP
 }
 
@@ -208,7 +226,7 @@ void GlobalDQReg::pairwiseRegister()
     pairwise_transformations_.clear();
     for (size_t i=0; i<cloud_pairs.size(); ++i){
         // Get a Pair and do stuff
-        Eigen::Matrix4d t;
+        Eigen::Matrix4f t;
         current_pair = cloud_pairs[i];
         PCL_INFO("pairwiseRegister: Pairwise registration of %s and %s\n", cloud_names[current_pair[0]].c_str(), cloud_names[current_pair[1]].c_str());
         getTransformOfPair(bunny_clouds_[current_pair[0]], bunny_clouds_[current_pair[1]], t);
@@ -225,13 +243,13 @@ void GlobalDQReg::runDQDiffusion()
 
     math3d::quaternion<double> R;
     point3d t;
-    Eigen::Matrix4d transform;
+    Eigen::Matrix4f transform;
     double rot[9];
     for (int i=0; i<NUM_PAIRS; ++i){
         transform = pairwise_transformations_[i];
         for (int j=0; j<3; ++j){
             for (int k=0; k<3; ++k){
-                rot[j+3*k] = transform(j,k);
+                rot[j+3*k] = (float)transform(j,k);
             }
         }
         R = math3d::rot_matrix_to_quaternion(math3d::matrix3x3<double>(rot));
