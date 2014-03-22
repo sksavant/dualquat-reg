@@ -26,6 +26,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr toPointXYZ(pcl::PointCloud<pcl::PointXYZI>::
         new_point.z = cloud->points[i].z;
         new_cloud->points.push_back(new_point);
     }
+    new_cloud->width = cloud->width;
+    new_cloud->height = 1;
     return new_cloud;
 }
 
@@ -231,7 +233,7 @@ void GlobalDQReg::pairwiseRegister()
         PCL_INFO("pairwiseRegister: Pairwise registration of %s and %s\n", cloud_names[current_pair[0]].c_str(), cloud_names[current_pair[1]].c_str());
         getTransformOfPair(bunny_clouds_[current_pair[0]], bunny_clouds_[current_pair[1]], t);
         pairwise_transformations_.push_back(t);
-        break; // Test one first
+        //break; // Test one first
     }
 }
 
