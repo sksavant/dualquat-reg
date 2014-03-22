@@ -4,15 +4,17 @@
 #define NUM_CONNECTED 6
 #define NUM_PAIRS 7
 
-double harris_radius = 0.005;
-double normal_estimation_radius = 0.01;
-double fpfh_estimation_radius = 0.02;
-double min_sample_distance = 0.1;
+double harris_radius = 0.0075;
+double normal_estimation_radius = 0.015;
+double fpfh_estimation_radius = 0.03;
+double min_sample_distance = 0.05;
 double max_correspondence_distance = 0.1*0.1;
 int nr_iterations = 500;
 int* current_pair;
 
 static std::string cloud_names[NUM_CLOUDS]={"bun000", "bun045", "bun090", "bun180", "bun270", "bun315", "chin", "ear_back", "top2", "top3"};
+pcl::PointCloud<Point>::Ptr harris_keypoints[NUM_CLOUDS];
+pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfh_features[NUM_CLOUDS];
 
 int ar[][2] = { {0,1}, {1,2}, {0,2}, {2,3}, {3,4} , {4,5} ,{5,0} };
 std::vector<int*> cloud_pairs(ar, ar+sizeof(ar)/sizeof(ar[0]));
@@ -58,6 +60,8 @@ void GlobalDQReg::loadPCDFiles(){
         pcl::io::loadPCDFile("data/"+cloud_names[i]+"_UnStructured.pcd", *cloud);
         pcl::removeNaNFromPointCloud(*cloud, *filtered_cloud, mapping);
         bunny_clouds_.push_back(cloud);
+        harris_keypoints[i] =  pcl::PointCloud<Point>::Ptr(new pcl::PointCloud<Point>);
+        fpfh_features[i] = pcl::PointCloud<pcl::FPFHSignature33>::Ptr(new pcl::PointCloud<pcl::FPFHSignature33>);
         PCL_INFO("loadPCDFiles : Cloud %s has %d points\n", cloud_names[i].c_str(), cloud->width);
     }
 
@@ -65,6 +69,11 @@ void GlobalDQReg::loadPCDFiles(){
 
 void GlobalDQReg::computeHarrisKeyPoint(pcl::PointCloud<Point>::Ptr& cloud, pcl::PointCloud<Point>::Ptr& out_keypoints, int cloud_id)
 {
+    if (harris_keypoints[cloud_id]->points.size() != 0){
+        out_keypoints = harris_keypoints[cloud_id];
+        return;
+    }
+
     pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints(new pcl::PointCloud<pcl::PointXYZI>);
     std::vector<int> mapping;
     pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_temp(new pcl::PointCloud<pcl::PointXYZI>);
@@ -79,12 +88,18 @@ void GlobalDQReg::computeHarrisKeyPoint(pcl::PointCloud<Point>::Ptr& cloud, pcl:
     pcl::removeNaNFromPointCloud(*keypoints_temp, *keypoints, mapping);
 
     out_keypoints = toPointXYZ(keypoints);
+    harris_keypoints[cloud_id] = out_keypoints;
     PCL_INFO("computeHarrisKeyPoint: (%s) : Found keypoints :%d\n", cloud_names[cloud_id].c_str(), out_keypoints->points.size());
 
 }
 
 void GlobalDQReg::computeFPFHFeatures(pcl::PointCloud<Point>::Ptr& cloud, pcl::PointCloud<Point>::Ptr& keypoints, pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs, int cloud_id)
 {
+    if (fpfh_features[cloud_id]->points.size() !=0){
+        fpfhs = fpfh_features[cloud_id];
+        return;
+    }
+
     PCL_INFO("computeFPFHFeatures: Found %d keypoints of %s\n", keypoints->points.size(), cloud_names[cloud_id].c_str());
     pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>());
     pcl::FPFHEstimationOMP<Point, pcl::Normal, pcl::FPFHSignature33> fpfh;
@@ -106,6 +121,7 @@ void GlobalDQReg::computeFPFHFeatures(pcl::PointCloud<Point>::Ptr& cloud, pcl::P
     fpfh.compute(*fpfhs);
     //time = (std::clock() - start_normal)/(double) CLOCKS_PER_SEC;
     //std::cerr << "FPFH compute time: " << time << " ms\n";
+    fpfh_features[cloud_id] = fpfhs;
     PCL_INFO("computeFPFHFeatures: Found FPFH features at %d keypoints of %s\n", fpfhs->points.size(), cloud_names[cloud_id].c_str());
 }
 
