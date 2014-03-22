@@ -30,6 +30,9 @@ class GlobalDQReg {
     void loadPCDFiles();
     void saveCloudKeyPoints(std::string, int);
     void getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4f& tranform);
+    void computeHarrisKeyPoint(pcl::PointCloud<Point>::Ptr& cloud, pcl::PointCloud<Point>::Ptr& out_keypoints, int cloud_id);
+    void computeFPFHFeatures(pcl::PointCloud<Point>::Ptr& cloud, pcl::PointCloud<Point>::Ptr& keypoints, pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs, int cloud_id);
+    void saveFilesofCloud(int cloud_id, pcl::PointCloud<Point>::Ptr& cloud, pcl::PointCloud<Point>::Ptr& keypoints, pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs);
 
 };
 

@@ -63,73 +63,76 @@ void GlobalDQReg::loadPCDFiles(){
 
 }
 
-void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4f& transform)
+void GlobalDQReg::computeHarrisKeyPoint(pcl::PointCloud<Point>::Ptr& cloud, pcl::PointCloud<Point>::Ptr& out_keypoints, int cloud_id)
 {
-    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_1(new pcl::PointCloud<pcl::PointXYZI>);
-    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_2(new pcl::PointCloud<pcl::PointXYZI>);
-    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_temp(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints(new pcl::PointCloud<pcl::PointXYZI>);
     std::vector<int> mapping;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr keypoints_temp(new pcl::PointCloud<pcl::PointXYZI>);
 
-    pcl::search::KdTree<Point>::Ptr tree_1(new pcl::search::KdTree<Point>());
-    pcl::search::KdTree<Point>::Ptr tree_2(new pcl::search::KdTree<Point>());
-    // TODO
-    // KeyPoints
-    pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal> hkp_1;
-    pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal> hkp_2;
+    pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>());
+    pcl::HarrisKeypoint3D<Point, pcl::PointXYZI, pcl::PointNormal> hkp;
 
-    hkp_1.setRadius(harris_radius);
-    hkp_1.setSearchMethod(tree_1);
-    hkp_1.setInputCloud(cloud_1);
-    hkp_1.compute(*keypoints_temp);
-    pcl::removeNaNFromPointCloud(*keypoints_temp, *keypoints_1, mapping);
-    PCL_INFO("getTransformOfPair: (%s) : Found keypoints :%d\n", cloud_names[current_pair[0]].c_str(), keypoints_1->points.size());
+    hkp.setRadius(harris_radius);
+    hkp.setSearchMethod(tree);
+    hkp.setInputCloud(cloud);
+    hkp.compute(*keypoints_temp);
+    pcl::removeNaNFromPointCloud(*keypoints_temp, *keypoints, mapping);
 
-    hkp_2.setRadius(harris_radius);
-    hkp_2.setSearchMethod(tree_2);
-    hkp_2.setInputCloud(cloud_2);
-    hkp_2.compute(*keypoints_temp);
-    pcl::removeNaNFromPointCloud(*keypoints_temp, *keypoints_2, mapping);
-    PCL_INFO("getTransformOfPair: (%s) : Found keypoints :%d\n", cloud_names[current_pair[1]].c_str(), keypoints_2->points.size());
+    out_keypoints = toPointXYZ(keypoints);
+    PCL_INFO("computeHarrisKeyPoint: (%s) : Found keypoints :%d\n", cloud_names[cloud_id].c_str(), out_keypoints->points.size());
 
-    // Features
+}
 
-    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs_1(new pcl::PointCloud<pcl::FPFHSignature33>);
-    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs_2(new pcl::PointCloud<pcl::FPFHSignature33>);
-
+void GlobalDQReg::computeFPFHFeatures(pcl::PointCloud<Point>::Ptr& cloud, pcl::PointCloud<Point>::Ptr& keypoints, pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs, int cloud_id)
+{
+    PCL_INFO("computeFPFHFeatures: Found %d keypoints of %s\n", keypoints->points.size(), cloud_names[cloud_id].c_str());
     pcl::search::KdTree<Point>::Ptr tree(new pcl::search::KdTree<Point>());
     pcl::FPFHEstimationOMP<Point, pcl::Normal, pcl::FPFHSignature33> fpfh;
     pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal>());
     pcl::NormalEstimation<Point, pcl::Normal> normal_estimation;
 
     //std::clock_t start_normal = std::clock();
-    normal_estimation.setInputCloud(cloud_1);
+    normal_estimation.setInputCloud(cloud);
     normal_estimation.setSearchMethod(tree);
     normal_estimation.setRadiusSearch(normal_estimation_radius);
     normal_estimation.compute(*normals);
     //double time = (std::clock() - start_normal)/(double) CLOCKS_PER_SEC;
     //std::cerr << "Normal estimation time: " << time << " ms\n";
-    fpfh.setSearchSurface(cloud_1);
+    fpfh.setSearchSurface(cloud);
     fpfh.setInputNormals(normals);
-    fpfh.setInputCloud(toPointXYZ(keypoints_1));
+    fpfh.setInputCloud(keypoints);
     fpfh.setSearchMethod(tree);
     fpfh.setRadiusSearch(fpfh_estimation_radius);
-    fpfh.compute(*fpfhs_1);
-    std::cerr << fpfhs_1->width << " " << fpfhs_1->height << "\n";
+    fpfh.compute(*fpfhs);
     //time = (std::clock() - start_normal)/(double) CLOCKS_PER_SEC;
     //std::cerr << "FPFH compute time: " << time << " ms\n";
-    PCL_INFO("getTransformOfPair: Found FPFH features at %d keypoints of %s\n", fpfhs_1->points.size(), cloud_names[current_pair[0]].c_str());
+    PCL_INFO("computeFPFHFeatures: Found FPFH features at %d keypoints of %s\n", fpfhs->points.size(), cloud_names[cloud_id].c_str());
+}
 
-    normal_estimation.setInputCloud(cloud_2);
-    normal_estimation.setSearchMethod(tree);
-    normal_estimation.setRadiusSearch(normal_estimation_radius);
-    normal_estimation.compute(*normals);
-    fpfh.setSearchSurface(cloud_2);
-    fpfh.setInputNormals(normals);
-    fpfh.setInputCloud(toPointXYZ(keypoints_2));
-    fpfh.setSearchMethod(tree);
-    fpfh.setRadiusSearch(fpfh_estimation_radius);
-    fpfh.compute(*fpfhs_2);
-    PCL_INFO("getTransformOfPair: Found FPFH features at %d keypoints of %s\n", fpfhs_2->points.size(), cloud_names[current_pair[1]].c_str());
+void GlobalDQReg::saveFilesofCloud(int cloud_id, pcl::PointCloud<Point>::Ptr& cloud, pcl::PointCloud<Point>::Ptr& keypoints, pcl::PointCloud<pcl::FPFHSignature33>::Ptr& fpfhs)
+{
+    pcl::io::savePCDFileASCII("data/run/"+cloud_names[cloud_id]+".pcd", *cloud);
+    pcl::io::savePCDFileASCII("data/run/"+cloud_names[cloud_id]+"_kp.pcd", *keypoints);
+    pcl::io::savePCDFileASCII("data/run/"+cloud_names[cloud_id]+"_fpfh.pcd", *fpfhs);
+}
+
+void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::PointCloud<Point>::Ptr& cloud_2, Eigen::Matrix4f& transform)
+{
+    // TODO
+    // KeyPoints
+    pcl::PointCloud<Point>::Ptr keypoints_1(new pcl::PointCloud<Point>);
+    pcl::PointCloud<Point>::Ptr keypoints_2(new pcl::PointCloud<Point>);
+
+    computeHarrisKeyPoint(cloud_1, keypoints_1, current_pair[0]);
+    computeHarrisKeyPoint(cloud_2, keypoints_2, current_pair[1]);
+
+    // Features
+
+    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs_1(new pcl::PointCloud<pcl::FPFHSignature33>);
+    pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs_2(new pcl::PointCloud<pcl::FPFHSignature33>);
+
+    computeFPFHFeatures(cloud_1, keypoints_1, fpfhs_1, current_pair[0]);
+    computeFPFHFeatures(cloud_2, keypoints_2, fpfhs_2, current_pair[1]);
 
     // SACIA
     pcl::SampleConsensusInitialAlignment<Point, Point, pcl::FPFHSignature33> sac_ia;
@@ -147,17 +150,13 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
     //sac_ia.setMaxCorrespondenceDistance(max_correspondence_distance);
     sac_ia.setMaximumIterations(nr_iterations);
 
-    sac_ia.setInputSource(toPointXYZ(keypoints_2));
+    sac_ia.setInputSource(keypoints_2);
     sac_ia.setSourceFeatures(fpfhs_2);
-    sac_ia.setInputTarget(toPointXYZ(keypoints_1));
+    sac_ia.setInputTarget(keypoints_1);
     sac_ia.setTargetFeatures(fpfhs_1);
 
-    pcl::io::savePCDFileASCII("data/run/"+cloud_names[current_pair[0]]+".pcd", *cloud_1);
-    pcl::io::savePCDFileASCII("data/run/"+cloud_names[current_pair[1]]+".pcd", *cloud_2);
-    pcl::io::savePCDFileASCII("data/run/"+cloud_names[current_pair[0]]+"_kp.pcd", *keypoints_1);
-    pcl::io::savePCDFileASCII("data/run/"+cloud_names[current_pair[1]]+"_kp.pcd", *keypoints_2);
-    pcl::io::savePCDFileASCII("data/run/"+cloud_names[current_pair[0]]+"_fpfh.pcd", *fpfhs_1);
-    pcl::io::savePCDFileASCII("data/run/"+cloud_names[current_pair[1]]+"_fpfh.pcd", *fpfhs_2);
+    saveFilesofCloud(current_pair[0], cloud_1, keypoints_1, fpfhs_1);
+    saveFilesofCloud(current_pair[1], cloud_2, keypoints_2, fpfhs_2);
 
     int count = 0;
     int max_count = 15;
@@ -165,7 +164,7 @@ void GlobalDQReg::getTransformOfPair(pcl::PointCloud<Point>::Ptr& cloud_1, pcl::
         sac_ia.align(ransaced_source);
         fitness_score = sac_ia.getFitnessScore(max_correspondence_distance);
         transformation_temp = sac_ia.getFinalTransformation();
-        PCL_INFO("Pointclouds aligned, fitness score (with keypoints only) is :%f", fitness_score);
+        PCL_INFO("Pointclouds aligned, fitness score (with keypoints only) is :%f\n", fitness_score);
 
         error = 0.0;
 
