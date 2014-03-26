@@ -111,6 +111,11 @@ void GlobalDQReg::computeFPFHFeatures(pcl::PointCloud<Point>::Ptr& cloud, pcl::P
     normal_estimation.setSearchMethod(tree);
     normal_estimation.setRadiusSearch(normal_estimation_radius);
     normal_estimation.compute(*normals);
+    for (int i = 0; i < normals->points.size(); i++){
+        if (!pcl::isFinite<pcl::Normal>(normals->points[i])){
+        PCL_WARN("normals[%d] is not finite\n", i);
+        }
+    }
     //double time = (std::clock() - start_normal)/(double) CLOCKS_PER_SEC;
     //std::cerr << "Normal estimation time: " << time << " ms\n";
     fpfh.setSearchSurface(cloud);
