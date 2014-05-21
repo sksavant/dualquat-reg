@@ -9,7 +9,7 @@
 #include <pcl/registration/ia_ransac.h>
 #include <pcl/io/pcd_io.h>
 
-#include "dualquat/dual_quaternions.h"
+#include "dual_quaternions.h"
 
 #include <Eigen/Dense>
 

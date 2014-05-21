@@ -10,24 +10,26 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 set(dq_diffusion_HDRS
     dualquat/dual_quaternions.h
-    dualquat/mesh.h
     dualquat/math3d.h)
 
-set(dq_diffusion_SRCS
+set (dq_diffusion_SRCS
     dualquat/mesh.cpp
-    dualquat/diffusion.hpp)
+    dualquat/main.cpp
+    dualquat/diffusion.hpp
+    )
 
 include_directories(
     ${PCL_INCLUDE_DIRS}
-    ${Eigen_INCLUDE_DIRS})
+    ${Eigen_INCLUDE_DIRS}
+    dualquat/
+    )
 
 add_definitions("-g")
 
-add_library(dq_diffusion SHARED ${dq_diffusion_HDRS} ${dq_diffusion_SRCS})
+add_executable(dq_diffusion_demo ${dq_diffusion_SRCS} ${dq_diffusion_HDRS})
 
-add_library(global_register_dq SHARED global_register.h global_register.cpp)
+add_library(global_register_dq SHARED global_register.h global_register.cpp ${dq_diffusion_HDRS})
 target_link_libraries(global_register_dq ${PCL_LIBRARIES})
 
-
 add_executable(global_register main.cpp)
-target_link_libraries(global_register dq_diffusion global_register_dq)
+target_link_libraries(global_register global_register_dq)
