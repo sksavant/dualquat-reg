@@ -2,7 +2,7 @@ project(global_dq_reg)
 
 cmake_minimum_required(VERSION 2.8)
 
-find_package(PCL 1.7.2 REQUIRED)
+find_package(PCL 1.7.2 EXACT)
 find_package(Eigen REQUIRED)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
@@ -25,11 +25,17 @@ include_directories(
     )
 
 add_definitions("-g")
+add_definitions("-Wl,--no-undefined")
 
-add_executable(dq_diffusion_demo ${dq_diffusion_SRCS} ${dq_diffusion_HDRS})
+#add_executable(dq_diffusion_demo ${dq_diffusion_SRCS} ${dq_diffusion_HDRS})
+
+add_library (dq_diffusion SHARED ${dq_diffusion_HDRS} ${dq_diffusion_SRCS})
 
 add_library(global_register_dq SHARED global_register.h global_register.cpp ${dq_diffusion_HDRS})
 target_link_libraries(global_register_dq ${PCL_LIBRARIES})
 
 add_executable(global_register main.cpp)
-target_link_libraries(global_register global_register_dq)
+target_link_libraries(global_register global_register_dq ${PCL_LIBRARIES})
+
+add_executable(compare_pcl_demo compare_pcl_demo.cpp)
+target_link_libraries(compare_pcl_demo dq_diffusion ${PCL_LIBRARIES})
