@@ -1,6 +1,12 @@
 #include <diffusion.hpp>
 
 #include <pcl/registration/dq_diffusion.h>
+#include <pcl/PolygonMesh.h>
+#include <pcl/io/ascii_io.h>
+#include <pcl/io/vtk_lib_io.h>
+#include <pcl/common/io.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/io/io.h>
 
 /*
  * ======================================================================
@@ -107,10 +113,44 @@ int main(int argc, char** argv)
   // ------------------------------------------------------
   // PCL Initialization
   // ------------------------------------------------------
+  typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+  typedef pcl::PointCloud<pcl::PointXYZ>::Ptr PointCloudPtr;
 
   pcl::registration::DQDiffusion<pcl::PointXYZ> dq; // #PCL : Init dq
+  std::vector<PointCloudPtr> cloud_ptrs;
+  std::cerr << "PCL: Loading Displaced files into PCL\n";
 
+  for (int i = 0; i < nranges; ++i)
+  {
+    pcl::PolygonMesh::Ptr mesh (new pcl::PolygonMesh ());
+    pcl::io::loadPolygonFilePLY (prefix + "/view" + ntos(i+1) + "-displaced.ply", *mesh);
+    PointCloudPtr pc (new PointCloud ());
+    pcl::fromPCLPointCloud2(mesh->cloud, *pc);
+    cloud_ptrs.push_back (pc);
+    std::cerr << "PCL : Cloud " << i << " loaded : Width " << pc->width << "\n";
+    dq.addPointCloud (pc);
+  }
 
+  for (int i = 0; i < nranges * links_per_view; ++i)
+  {
+    int next = (i == nranges - 1 ? 0 : i + 1);
+    Eigen::Matrix4f transform;
+    for (int r = 0; r < 3; ++r){
+      for (int c = 0; c < 3; ++c){
+        transform (r,c) = pairwise_displaced[i].first (r,c);
+      }
+    }
+    transform (0,3) = pairwise_displaced[i].second.x;
+    transform (1,3) = pairwise_displaced[i].second.y;
+    transform (2,3) = pairwise_displaced[i].second.z;
+    transform (3,3) = 0;
+
+    dq.addPairwiseTransformation (i, next, transform);
+  }
+
+  std::cerr << "PCL : Initial error is " << dq.getFitnessScore () << std::endl;
+  dq.compute ();
+  std::cerr << "PCL : Final error is " << dq.getFitnessScore () << std::endl;
 
   // -------------------------------------------------------
   // Run Dual Quaternion Diffusion
