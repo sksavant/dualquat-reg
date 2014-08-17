@@ -305,22 +305,29 @@ void transducer::linear_transduce(const int diffusion_iterations)
 {
    get_estimate();
    std::vector<dual_quaternion> Q2(Q);
+   // TODO remove
+   //int diffusion_iteration = 1;
    for(int rep=0; rep!=diffusion_iterations; ++rep)
    {
       for (int i=0; i!=n; ++i)
       {
          Q2[i]=dual_quaternion(0.0);
+         //std::cerr << "Q2 " << i << " " << Q2[i] << "\n";
          std::vector<double>::iterator witer=W[i].begin();
          for (std::vector< std::pair<int,dual_quaternion> > ::iterator iter=DM[i].begin(); iter!=DM[i].end(); ++iter, ++witer)
          {
             dual_quaternion qi=(!iter->second)*Q[iter->first];
             const double w=sign(math3d::dot(Q[i].R, qi.R ))*(*witer)/WM[i];
+            //std::cerr << "W:Original " << i << "," << iter->first << " " << w << "\n";
             Q2[i] += (w*qi);
          }
          Q2[i].normalize();
       }
       for (int i=0; i!=n; ++i)
+      {
          Q[i]=Q2[i];
+         //std::cerr << "Original " << i << " " << Q[i] << "\n";
+      }
    }
    dual_quaternion st=!Q[0];
    for (int i=0; i!=n; ++i)
@@ -331,6 +338,7 @@ void transducer::manifold_transduce(const int diffusion_iterations, const int av
 {
    get_estimate();
    std::vector<dual_quaternion> Q2(Q);
+   //int diffusion_iteration = 1;
    for(int rep=0; rep!=diffusion_iterations; ++rep)
    {
       for (int i=0; i!=n; ++i)
@@ -363,6 +371,7 @@ void transducer::manifold_transduce(const int diffusion_iterations, const int av
             //std::cerr << "### " << i << " - " << log_mean << std::endl;
             Q2[i] = (log_mean.exp())*Q2[i];
             Q2[i].normalize(); //should not be needed!
+            //std::cerr << i << ": " << Q2[i] << "\n";
          }
 
       }
