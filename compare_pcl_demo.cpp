@@ -148,7 +148,8 @@ int main(int argc, char** argv)
     dq.addPairwiseTransformation (i, next, transform);
   }
 
-  std::cerr << "PCL : Initial error is " << dq.getFitnessScore () << std::endl;
+  dq.setLinearApproximation (true);
+  std::cerr << "PCL : Initial error is " << std::endl;//dq.getFitnessScore () << std::endl;
   dq.compute ();
   std::cerr << "PCL : Final error is " << dq.getFitnessScore () << std::endl;
 
