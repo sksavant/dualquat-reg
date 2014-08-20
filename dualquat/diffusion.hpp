@@ -202,8 +202,8 @@ void run_diffusion(
    x.get_estimate();
    std::cout << "Initial RMSTE " << x.rmste() << std::endl;
 
-   //x.linear_transduce();
-   x.manifold_transduce ();
+   x.linear_transduce();
+   //x.manifold_transduce ();
    std::cout << "Final RMSTE " << x.rmste() << std::endl;
 
    for (int i=0; i<nranges; ++i)
